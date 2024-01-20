@@ -1,0 +1,44 @@
+name: "Screenshots"
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+
+permissions: write-all
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    name: Take a screenshot after page was built
+    steps:
+      - name: Wait for build to succeed
+        uses: fountainhead/action-wait-for-check@v1.1.0
+        id: wait-for-build
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: Make sure it builds. Then show a preview.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/checkout@v4
+      - name: install puppeteer-headful
+        uses: mujo-code/puppeteer-headful@master
+        env:
+          CI: 'true'
+      - name: Sleep for 120 seconds
+        run: sleep 120s
+        shell: bash
+      - name: screenshots-ci-action
+        uses: flameddd/screenshots-ci-action@master
+        with:
+          devices: iPhone 13,iPad Pro,iPad Pro landscape
+          fullpage: false
+          noDesktop: true
+          releaseId: 132411332
+          type: png
+          url: ${{ env.PR_NUMBER }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: https://primajin.github.io/genshin-farming-helper/pr-preview/pr-${{ github.event.number }}/
+      - uses: actions/upload-artifact@v4
+        with:
+          path: screenshots
+          name: Download-screenshots
