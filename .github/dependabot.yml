@@ -13,6 +13,11 @@ updates:
       prefix: ":books:"
     labels:
       - "dependencies"
+      - "dependabot"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -21,3 +26,4 @@ updates:
       prefix: ":books:"
     labels:
       - "dependencies"
+      - "dependabot"
