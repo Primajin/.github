@@ -1,0 +1,4 @@
+{
+  "name": "Lint PR Title",
+  "description": "Enforce Conventional Commits style on pull request titles."
+}

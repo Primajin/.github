@@ -6,20 +6,23 @@ on:
   pull_request:
     branches: [ $default-branch ]
 
+permissions:
+  contents: read
+
 jobs:
-  lint:
+  test:
     runs-on: ubuntu-latest
-    name: Make sure the the unit tests pass and gather coverage.
+    name: Make sure the unit tests pass.
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '21'
+          node-version: '24'
           cache: 'npm'
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.npm
           key: npm-${{ hashFiles('package-lock.json') }}
@@ -29,4 +32,11 @@ jobs:
       - name: Run coverage
         run: npm run coverage
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

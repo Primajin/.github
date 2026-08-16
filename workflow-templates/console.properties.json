@@ -1,0 +1,4 @@
+{
+  "name": "Console",
+  "description": "Report browser console errors on pull requests."
+}
