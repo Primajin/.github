@@ -5,21 +5,6 @@
 
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "saturday"
-      time: "00:01"
-    commit-message:
-      prefix: ":books:"
-    labels:
-      - "dependencies"
-      - "dependabot"
-    groups:
-      dependencies:
-        patterns:
-          - "*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
