@@ -1,0 +1,4 @@
+{
+  "name": "Deploy PR previews",
+  "description": "Deploy per-pull-request preview builds to GitHub Pages."
+}
