@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Primajin shared Renovate preset: everything bundled into a single weekly PR",
+  "extends": ["config:recommended", ":disableDependencyDashboard"],
+  "timezone": "Europe/Berlin",
+  "schedule": ["before 6am on saturday"],
+  "commitMessagePrefix": ":books:",
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 1,
+  "prHourlyLimit": 0,
+  "separateMajorMinor": false,
+  "separateMultipleMajor": false,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on saturday"]
+  },
+  "packageRules": [
+    {
+      "description": "Bundle every update (all ecosystems, all update types) into one PR",
+      "matchPackageNames": ["*"],
+      "groupName": "all dependencies"
+    }
+  ]
+}
