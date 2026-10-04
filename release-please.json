@@ -1,0 +1,9 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Primajin Renovate preset for repos using release-please: conventional commits and PR titles (chore(deps): ...)",
+  "extends": ["local>Primajin/.github"],
+  "commitMessagePrefix": "",
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps"
+}
