@@ -7,7 +7,7 @@
   ],
   "timezone": "Europe/Berlin",
   "schedule": [
-    "before 6am on saturday"
+    "at any time"
   ],
   "commitMessagePrefix": ":books:",
   "labels": [
@@ -21,7 +21,7 @@
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": [
-      "before 6am on saturday"
+      "at any time"
     ]
   },
   "packageRules": [
