@@ -1,36 +1,54 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Primajin shared Renovate preset: everything bundled into a single weekly PR",
+  "description": "Primajin shared Renovate preset: non-major updates bundled and automerged, majors bundled for manual review",
   "extends": [
     "config:recommended",
     ":disableDependencyDashboard"
   ],
   "timezone": "Europe/Berlin",
   "schedule": [
-    "at any time"
+    "before 6am on saturday"
   ],
   "commitMessagePrefix": ":books:",
   "labels": [
     "dependencies"
   ],
   "platformCommit": "enabled",
-  "prConcurrentLimit": 1,
+  "prConcurrentLimit": 3,
   "prHourlyLimit": 0,
-  "separateMajorMinor": false,
-  "separateMultipleMajor": false,
   "lockFileMaintenance": {
     "enabled": true,
+    "automerge": true,
     "schedule": [
-      "at any time"
+      "before 6am on saturday"
     ]
   },
   "packageRules": [
     {
-      "description": "Bundle every update (all ecosystems, all update types) into one PR",
+      "description": "Bundle all non-major updates into one PR and automerge it once checks are green",
       "matchPackageNames": [
         "*"
       ],
-      "groupName": "all dependencies"
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest",
+        "pinDigest"
+      ],
+      "groupName": "all non-major dependencies",
+      "automerge": true
+    },
+    {
+      "description": "Bundle all major updates into one PR; never automerge, review manually",
+      "matchPackageNames": [
+        "*"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": "all major dependencies",
+      "automerge": false
     }
   ]
 }
