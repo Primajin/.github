@@ -1,9 +1,30 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Primajin Renovate preset for repos using release-please: conventional commits and PR titles (chore(deps): ...)",
-  "extends": ["local>Primajin/.github"],
+  "description": "Primajin Renovate preset for repos using release-please: conventional commits, hidden chore(deps) subjects, per-dependency changelog entries via a PR-body commit override",
+  "extends": [
+    "local>Primajin/.github"
+  ],
   "commitMessagePrefix": "",
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
-  "semanticCommitScope": "deps"
+  "semanticCommitScope": "deps",
+  "prHeader": "{{#if isGroup}}Updates {{#each (distinct (lookupArray upgrades \"depName\"))}}`{{{this}}}`{{#unless @last}}, {{/unless}}{{/each}}.\n\n{{/if}}{{#if depName}}{{#unless isVulnerabilityAlert}}<!--\nBEGIN_COMMIT_OVERRIDE\n{{{prTitle}}}\nBEGIN_NESTED_COMMIT\ndeps: update {{#each (distinct (lookupArray upgrades \"depName\"))}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}\nEND_NESTED_COMMIT\nEND_COMMIT_OVERRIDE\n-->\n\n{{/unless}}{{/if}}",
+  "packageRules": [
+    {
+      "description": "Always chore(deps): config:recommended would turn production-dependency groups into fix(deps), which cuts a release",
+      "matchPackageNames": [
+        "*"
+      ],
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": [
+      "dependencies",
+      "security"
+    ],
+    "semanticCommitType": "fix",
+    "semanticCommitScope": "deps"
+  }
 }
