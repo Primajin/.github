@@ -49,7 +49,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
       - name: Use WebApp Console Log Action
-        uses: Primajin/webapp-console-log-action@v1.8.2
+        uses: Primajin/webapp-console-log-action@v1.8.6
         with:
           webapp-url: ${{ env.PREVIEW_URL }}
           regexp-error: 'Failed \D+ 404 \(\)'
