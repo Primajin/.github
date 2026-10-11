@@ -1,13 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Primajin shared Renovate preset: non-major updates bundled and automerged, majors bundled for manual review",
+  "description": "Primajin shared Renovate preset: non-major updates bundled and automerged on weekends, majors bundled for manual review",
   "extends": [
     "config:recommended",
     ":disableDependencyDashboard"
   ],
   "timezone": "Europe/Berlin",
   "schedule": [
-    "before 6am on saturday"
+    "every weekend"
   ],
   "commitMessagePrefix": ":books:",
   "labels": [
@@ -16,12 +16,16 @@
   "platformCommit": "enabled",
   "prConcurrentLimit": 3,
   "prHourlyLimit": 0,
+  "prTitleStrict": true,
+  "prHeader": "{{#if isGroup}}Updates {{#each (distinct (lookupArray upgrades \"depName\"))}}`{{{this}}}`{{#unless @last}}, {{/unless}}{{/each}}.\n\n{{/if}}",
   "lockFileMaintenance": {
     "enabled": true,
     "automerge": true,
     "schedule": [
-      "before 6am on saturday"
-    ]
+      "every weekend"
+    ],
+    "commitMessageAction": "Refresh",
+    "commitMessageTopic": "lockfile"
   },
   "packageRules": [
     {
@@ -36,7 +40,7 @@
         "digest",
         "pinDigest"
       ],
-      "groupName": "all non-major dependencies",
+      "groupName": "non-major dependencies",
       "automerge": true
     },
     {
@@ -47,8 +51,11 @@
       "matchUpdateTypes": [
         "major"
       ],
-      "groupName": "all major dependencies",
+      "groupName": "major dependencies",
       "automerge": false
     }
+  ],
+  "ignorePresets": [
+    "group:monorepos"
   ]
 }
