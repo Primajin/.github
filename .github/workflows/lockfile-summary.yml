@@ -1,0 +1,35 @@
+name: Lockfile summary
+
+# Reusable workflow: comments which packages changed in the package-lock.json files of a
+# pull request (Renovate lockfile maintenance PRs otherwise only say "All locks refreshed").
+# Call it from a `pull_request` workflow, see workflow-templates/lockfile-summary.yml.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    name: Summarise lockfile changes
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Checkout shared script
+        uses: actions/checkout@v7
+        with:
+          repository: Primajin/.github
+          path: .shared
+          sparse-checkout: .github/scripts
+      - name: Comment lockfile changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: origin/${{ github.base_ref }}
+        run: node .shared/.github/scripts/lockfile-summary.mjs
