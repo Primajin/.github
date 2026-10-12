@@ -1,0 +1,7 @@
+{
+  "name": "Lockfile summary",
+  "description": "Comment which packages changed in package-lock.json on Renovate pull requests.",
+  "iconName": "octicon package",
+  "categories": ["JavaScript", "Utilities"],
+  "filePatterns": ["package-lock.json$"]
+}
