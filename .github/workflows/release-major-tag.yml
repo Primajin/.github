@@ -1,0 +1,77 @@
+name: Release major tag
+
+# Moves the floating major tag of THIS repo (`v1`, `v2`, ...) to a release tag, so that
+# callers can pin the reusable workflows here with `@v1` and still receive compatible
+# updates. Pushing a `vMAJOR.MINOR.PATCH` tag moves `vMAJOR` to the same commit.
+#
+# Cutting the first `v1` (after the reusable workflows are merged to `main`):
+#   git switch main && git pull
+#   git tag v1.0.0 && git push origin v1.0.0     # this workflow then creates `v1`
+#   gh release create v1.0.0 --verify-tag --generate-notes   # optional release notes
+# Verify:  git ls-remote --tags origin v1
+#
+# Recovery path: tags created by an Actions run with GITHUB_TOKEN do not trigger other
+# workflows, and the workflow file must exist on the tagged commit for a tag push to
+# trigger it. In both cases run it by hand from `main`:
+#   gh workflow run release-major-tag.yml -f tag=v1.0.0
+#
+# Safety checks before the force-push: the tag must be a strict `vX.Y.Z`, must point to a
+# commit that is on `main`, and must be the newest `vX.*` tag (the major tag never moves
+# backwards).
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to move the major tag to, e.g. v1.0.0.
+        type: string
+        required: true
+
+concurrency:
+  group: release-major-tag
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  move-major-tag:
+    # A manual run must be started from main; a tag push always runs.
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Move major version tag
+        env:
+          TAG_NAME: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -eu
+          if ! [[ $TAG_NAME =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$TAG_NAME' is not a vMAJOR.MINOR.PATCH tag."
+            exit 1
+          fi
+          git rev-parse --verify --quiet "refs/tags/${TAG_NAME}" > /dev/null || {
+            echo "::error::Tag $TAG_NAME does not exist."
+            exit 1
+          }
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "${TAG_NAME}^{commit}" origin/main || {
+            echo "::error::$TAG_NAME is not on main."
+            exit 1
+          }
+          major="${TAG_NAME%%.*}"
+          newest="$(git tag --list "${major}.*" --sort=-v:refname | grep -E "^${major}\.[0-9]+\.[0-9]+$" | head -n 1 || true)"
+          if [ "$newest" != "$TAG_NAME" ]; then
+            echo "::notice::$TAG_NAME is not the newest ${major}.x.y tag (newest: ${newest}); not moving ${major}."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "${major}" "${TAG_NAME}^{commit}"
+          git push origin "${major}" --force

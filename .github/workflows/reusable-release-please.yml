@@ -1,0 +1,99 @@
+name: Reusable release-please
+
+# Reusable workflow: runs release-please (release PR + GitHub release) and, when a release
+# was just created, moves the floating major tag (e.g. `v1`) to the new release tag. The
+# floating tag is what consumers of a GitHub Action pin to (`uses: owner/repo@v1`).
+#
+# The calling job must grant `contents: write` and `pull-requests: write`; a called workflow
+# cannot raise permissions. Call it from a `push` workflow on the default branch.
+#
+# Usage (caller):
+#   jobs:
+#     release-please:
+#       permissions:
+#         contents: write
+#         pull-requests: write
+#       uses: Primajin/.github/.github/workflows/reusable-release-please.yml@v1
+#
+# Assumptions: the repo has a single root package and release tags are `v`-prefixed
+# (`include-v-in-tag: true`, `include-component-in-tag: false` in the release-please config), so the
+# floating tag is `v<major>`. The `major` output only exists for the root package. PRs and
+# releases created with GITHUB_TOKEN do not trigger other workflows (no CI on the release PR);
+# that is a GitHub limitation of the default token and not changed here.
+#
+# Not included on purpose: npm publishing. Repos that publish to npm keep their own
+# `publish-npm` job and chain it on this workflow's `release_created` output, see
+# workflow-templates/release-please.yml. Publishing a GitHub Action to the Marketplace is
+# still a manual step in the release UI.
+#
+# See docs/reusable-workflows.md for all inputs and outputs.
+
+on:
+  workflow_call:
+    inputs:
+      config-file:
+        description: Path of the release-please config file in the calling repo.
+        type: string
+        default: release-please-config.json
+      manifest-file:
+        description: Path of the release-please manifest file in the calling repo.
+        type: string
+        default: .release-please-manifest.json
+      update-major-tag:
+        description: Move the floating major tag (e.g. `v1`) to the new release tag after a release.
+        type: boolean
+        default: true
+    outputs:
+      release_created:
+        description: "'true' when a release was created by this run."
+        value: ${{ jobs.release-please.outputs.release_created }}
+      tag_name:
+        description: Tag of the created release, e.g. `v1.2.3`.
+        value: ${{ jobs.release-please.outputs.tag_name }}
+      major:
+        description: Major version of the created release, e.g. `1`.
+        value: ${{ jobs.release-please.outputs.major }}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-please-${{ github.repository }}
+      cancel-in-progress: false
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      major: ${{ steps.release.outputs.major }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          token: ${{ github.token }}
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}
+
+  update-major-tag:
+    needs: release-please
+    if: ${{ inputs.update-major-tag && needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Move major version tag
+        env:
+          MAJOR: ${{ needs.release-please.outputs.major }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          set -eu
+          [[ $MAJOR =~ ^[0-9]+$ ]] || { echo "::error::release-please returned no numeric major version (got '${MAJOR}')."; exit 1; }
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "v${MAJOR}" "${TAG_NAME}^{commit}"
+          git push origin "v${MAJOR}" --force

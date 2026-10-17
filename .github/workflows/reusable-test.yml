@@ -1,0 +1,132 @@
+name: Reusable test
+
+# Reusable workflow: lint + unit tests for an npm project, optionally with coverage
+# and a Codecov upload.
+#
+# The two jobs keep the display names the Primajin action repos already use
+# ("Lint the code." and "Run unit tests.") so the check names that show up in a PR do
+# not change when a repo switches from its local `_test.yml` to this workflow.
+#
+# Usage (caller):
+#   jobs:
+#     test:
+#       permissions:
+#         contents: read
+#       uses: Primajin/.github/.github/workflows/reusable-test.yml@v1
+#       with:
+#         coverage: true
+#       secrets:
+#         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+#
+# The command inputs are run through `bash -c`. They are trusted caller code: set them in the
+# workflow file and never feed them from pull request or other event data.
+#
+# Caching: kept as an explicit actions/cache step instead of `setup-node` `cache: npm` because
+# setup-node's key has no Node version and it has no restore-keys fallback, so a changed
+# package-lock.json would start from an empty cache.
+#
+# See docs/reusable-workflows.md for all inputs and more examples.
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: Node.js version passed to actions/setup-node.
+        type: string
+        default: '24'
+      lint-command:
+        description: Command that lints the project.
+        type: string
+        default: npm run lint
+      test-command:
+        description: Command that runs the unit tests (used when `coverage` is false).
+        type: string
+        default: npm test
+      coverage:
+        description: >-
+          Run `coverage-command` instead of `test-command` and upload the result to Codecov.
+        type: boolean
+        default: false
+      coverage-command:
+        description: Command that runs the unit tests with coverage (used when `coverage` is true).
+        type: string
+        default: npm run coverage
+      test-job-name:
+        description: >-
+          Display name of the unit-test job. Override it only to keep an existing required
+          check name stable.
+        type: string
+        default: Run unit tests.
+    secrets:
+      CODECOV_TOKEN:
+        description: Codecov upload token. Only read when `coverage` is true.
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint the code.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+      - name: Cache dependencies
+        uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ inputs.node-version }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ inputs.node-version }}-
+            npm-${{ runner.os }}-
+      - name: Install dependencies
+        run: npm ci
+      - name: Run lint
+        env:
+          LINT_COMMAND: ${{ inputs.lint-command }}
+        run: bash -c "$LINT_COMMAND"
+
+  test:
+    runs-on: ubuntu-latest
+    name: ${{ inputs.test-job-name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+      - name: Cache dependencies
+        uses: actions/cache@v6
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ inputs.node-version }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ inputs.node-version }}-
+            npm-${{ runner.os }}-
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        if: ${{ !inputs.coverage }}
+        env:
+          TEST_COMMAND: ${{ inputs.test-command }}
+        run: bash -c "$TEST_COMMAND"
+      - name: Run tests with coverage
+        if: ${{ inputs.coverage }}
+        env:
+          COVERAGE_COMMAND: ${{ inputs.coverage-command }}
+        run: bash -c "$COVERAGE_COMMAND"
+      - name: Upload coverage to Codecov
+        if: ${{ inputs.coverage }}
+        uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
