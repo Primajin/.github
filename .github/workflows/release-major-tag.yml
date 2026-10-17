@@ -1,0 +1,41 @@
+name: Release major tag
+
+# Moves the floating major tag of THIS repo (`v1`, `v2`, ...) to a release tag, so that
+# callers can pin the reusable workflows here with `@v1` and still receive compatible
+# updates. Every `vMAJOR.MINOR.PATCH` tag that is pushed moves `vMAJOR` to the same commit.
+#
+# Cutting the first `v1`:
+#   1. Merge the reusable workflows to `main`.
+#   2. Create a release / tag `v1.0.0` on that commit, e.g.
+#        gh release create v1.0.0 --target main --title v1.0.0 --generate-notes
+#   3. This workflow runs on the tag push and creates `v1`.
+# A breaking change to an input, output or required permission gets a new major: tag
+# `v2.0.0`, and callers move to `@v2` when they are ready.
+#
+# Note: the workflow file must exist on the tagged commit for the tag push to trigger it.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  move-major-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Move major version tag
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          major="${TAG_NAME%%.*}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "${major}" "${TAG_NAME}^{commit}"
+          git push origin "${major}" --force
