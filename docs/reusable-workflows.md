@@ -9,18 +9,51 @@ called from other repositories with `uses: Primajin/.github/.github/workflows/<f
 | [`reusable-lint-pr-title.yml`](../.github/workflows/reusable-lint-pr-title.yml) | Sync the PR title bump level with the commits and validate Conventional Commits |
 | [`reusable-release-please.yml`](../.github/workflows/reusable-release-please.yml) | release-please plus moving the floating major tag |
 | [`lockfile-summary.yml`](../.github/workflows/lockfile-summary.yml) | Comment which packages changed in `package-lock.json` on Renovate PRs |
-| [`release-major-tag.yml`](../.github/workflows/release-major-tag.yml) | Not reusable: moves this repository's own `v1`, `v2`, ... tags |
+
+Not reusable, used by this repository itself: [`release-major-tag.yml`](../.github/workflows/release-major-tag.yml) moves
+the `v1`, `v2`, ... tags of this repository (see below).
 
 ## Versioning policy
 
 - Callers pin the floating major tag: `@v1`. They receive backwards-compatible fixes and improvements automatically.
 - A change that renames or removes an input, output or secret, or that needs more permissions from the caller, is a
   breaking change and ships as a new major (`v2`). The old major keeps working until it is retired.
-- The major tag is moved by [`release-major-tag.yml`](../.github/workflows/release-major-tag.yml): pushing a tag
-  `vMAJOR.MINOR.PATCH` (for example through `gh release create v1.0.0 --target main --generate-notes`) force-moves
-  `vMAJOR` to that commit. Cut `v1.0.0` after the workflows are merged to `main`; `v1` appears right after.
 - Until `v1` exists, `@main` works for trials, but do not leave it in a repository: every merge here would change that
-  repository's CI immediately.
+  repository's CI immediately. `lockfile-summary.yml` is the one exception today: webapp-console-log-action calls it
+  with `@main`, and it moves to `@v1` once the tag exists.
+- Known limitation: the callers pin tags, not commit SHAs, so a moved tag changes their CI without a PR in the caller.
+  SHA pinning is not enforced; the tag ruleset below is what protects the tag.
+
+### Cutting a release and moving the major tag
+
+[`release-major-tag.yml`](../.github/workflows/release-major-tag.yml) force-moves `vMAJOR` to the commit of the newest
+pushed `vMAJOR.MINOR.PATCH` tag. Before it moves anything it checks that the tag is a strict `vX.Y.Z`, that its commit
+is on `main`, and that it is the newest `vX.*` tag (the major tag never moves backwards). Runs are serialized.
+
+1. Merge the change to `main`.
+2. Create and push the release tag from `main`:
+   ```sh
+   git switch main && git pull
+   git tag v1.0.0 && git push origin v1.0.0
+   ```
+   Optionally add release notes: `gh release create v1.0.0 --verify-tag --generate-notes`.
+3. Verify that the major tag exists and points to the release commit:
+   ```sh
+   git ls-remote --tags origin v1 v1.0.0
+   ```
+4. Fallback: a tag push only triggers the workflow when the workflow file exists on the tagged commit, and tags created
+   by an Actions run with `GITHUB_TOKEN` (for example by release-please) never trigger other workflows. Run it by hand
+   from `main` instead:
+   ```sh
+   gh workflow run release-major-tag.yml -f tag=v1.0.0
+   ```
+
+### Recommended tag ruleset
+
+Because callers run whatever `@v1` points to, restrict who can create, move or delete `v*` tags. Recommended
+repository ruleset (*Settings > Rules > Rulesets*, target: tags, pattern `v*`, enforcement active): restrict creation,
+update and deletion, with the repository admin role and the GitHub Actions app as bypass actors, so that only the owner
+and `release-major-tag.yml` can move the tags. This ruleset is a recommendation and is not created by this repository.
 
 ## Things to know before calling
 
@@ -35,6 +68,11 @@ called from other repositories with `uses: Primajin/.github/.github/workflows/<f
 - **Check names.** In a pull request the checks of a reusable workflow show as `<calling job> / <called job>`, for
   example `test / Lint the code.`. Branch rulesets should require the aggregator job `All checks green` (see below)
   rather than the individual checks.
+- **Command inputs are trusted code.** `lint-command`, `test-command` and `coverage-command` of `reusable-test.yml`
+  run through `bash -c`. Set them in the workflow file and never build them from pull request or other event data.
+- **Release PRs do not run CI.** PRs and releases created by release-please with `GITHUB_TOKEN` do not trigger other
+  workflows. That is a GitHub limitation of the default token; use a PAT or GitHub App token in the caller if CI is
+  needed on the release PR.
 - **Triggers and `if:` conditions stay in the caller.** Reusable workflows define no `on:` triggers besides
   `workflow_call`.
 
@@ -71,7 +109,7 @@ jobs:
 
 ## `reusable-lint-pr-title.yml`
 
-Two jobs: `Promote PR title bump level to match highest commit bump level` (skipped for fork PRs) and
+Two jobs: `Promote PR title bump level to match highest commit bump level` (skipped for fork and Dependabot PRs, whose tokens are read-only) and
 `Validate PR title follows Conventional Commits`. Call it from a `pull_request` workflow on `opened`, `edited`,
 `synchronize` and `reopened`.
 
@@ -106,7 +144,9 @@ workflow on the default branch.
 | `tag_name` | Tag of the release, e.g. `v1.2.3` |
 | `major` | Major version, e.g. `1` |
 
-npm publishing is intentionally not part of this workflow. A repository that publishes to npm adds its own job after
+Assumes a single root package and `v`-prefixed tags (`include-v-in-tag: true`, `include-component-in-tag: false`),
+because the floating tag is `v<major>`. The major version is validated before the tag is moved. npm publishing is
+intentionally not part of this workflow. A repository that publishes to npm adds its own job after
 the call, for example `needs: release-please` with `if: needs.release-please.outputs.release_created == 'true'`
 (see `workflow-templates/release-please.yml`). Publishing to the GitHub Marketplace stays a manual step.
 
