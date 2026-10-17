@@ -62,10 +62,17 @@ jobs:
             const PR_NUMBER = context.payload.pull_request.number;
             const { owner, repo } = context.repo;
 
-            // GITHUB_TOKEN is read-only for pull requests from forks, so the title cannot be updated there.
-            const isFork = context.payload.pull_request.head.repo.full_name !== context.payload.pull_request.base.repo.full_name;
+            // GITHUB_TOKEN is read-only for pull requests from forks (a deleted fork has no head repo)
+            // and for Dependabot, so the title cannot be updated there.
+            const headRepo = context.payload.pull_request.head.repo?.full_name;
+            const isFork = !headRepo || headRepo !== context.payload.pull_request.base.repo.full_name;
             if (isFork) {
               core.info('PR is from a fork; skipping PR title sync because GITHUB_TOKEN cannot update fork PR titles.');
+              return;
+            }
+
+            if (context.actor === 'dependabot[bot]') {
+              core.info('PR was triggered by Dependabot; skipping PR title sync because its GITHUB_TOKEN is read-only.');
               return;
             }
 
@@ -129,12 +136,17 @@ jobs:
 
             core.notice(`Updating PR title from "${currentTitle}" to "${newTitle}"`);
 
-            await github.rest.pulls.update({
-              owner,
-              repo,
-              pull_number: PR_NUMBER,
-              title: newTitle,
-            });
+            try {
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: PR_NUMBER,
+                title: newTitle,
+              });
+            } catch (error) {
+              if (error.status !== 403) throw error;
+              core.warning(`Could not update the PR title (HTTP 403, read-only token?): ${error.message}`);
+            }
 
   lint-pr-title:
     runs-on: ubuntu-latest
