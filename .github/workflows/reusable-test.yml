@@ -18,6 +18,13 @@ name: Reusable test
 #       secrets:
 #         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 #
+# The command inputs are run through `bash -c`. They are trusted caller code: set them in the
+# workflow file and never feed them from pull request or other event data.
+#
+# Caching: kept as an explicit actions/cache step instead of `setup-node` `cache: npm` because
+# setup-node's key has no Node version and it has no restore-keys fallback, so a changed
+# package-lock.json would start from an empty cache.
+#
 # See docs/reusable-workflows.md for all inputs and more examples.
 
 on:
@@ -65,6 +72,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -82,7 +91,7 @@ jobs:
       - name: Run lint
         env:
           LINT_COMMAND: ${{ inputs.lint-command }}
-        run: eval "$LINT_COMMAND"
+        run: bash -c "$LINT_COMMAND"
 
   test:
     runs-on: ubuntu-latest
@@ -90,6 +99,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -108,12 +119,12 @@ jobs:
         if: ${{ !inputs.coverage }}
         env:
           TEST_COMMAND: ${{ inputs.test-command }}
-        run: eval "$TEST_COMMAND"
+        run: bash -c "$TEST_COMMAND"
       - name: Run tests with coverage
         if: ${{ inputs.coverage }}
         env:
           COVERAGE_COMMAND: ${{ inputs.coverage-command }}
-        run: eval "$COVERAGE_COMMAND"
+        run: bash -c "$COVERAGE_COMMAND"
       - name: Upload coverage to Codecov
         if: ${{ inputs.coverage }}
         uses: codecov/codecov-action@v7
