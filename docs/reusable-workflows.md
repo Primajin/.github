@@ -21,6 +21,10 @@ the `v1`, `v2`, ... tags of this repository (see below).
 - Until `v1` exists, `@main` works for trials, but do not leave it in a repository: every merge here would change that
   repository's CI immediately. `lockfile-summary.yml` is the one exception today: webapp-console-log-action calls it
   with `@main`, and it moves to `@v1` once the tag exists.
+- Reusable workflows here are self-contained: they never check out this repository or download anything from it at run
+  time. A reusable workflow runs the YAML of the commit the caller pinned, and a second checkout of this repository
+  would resolve its own ref (the default branch) and bypass that pin. Helper code therefore lives inline in the
+  workflow file (see `lockfile-summary.yml`), so `@v1`, `@<sha>` and `@main` each run exactly the code of that ref.
 - Known limitation: the callers pin tags, not commit SHAs, so a moved tag changes their CI without a PR in the caller.
   SHA pinning is not enforced; the tag ruleset below is what protects the tag.
 
@@ -164,6 +168,34 @@ jobs:
       contents: write
       pull-requests: write
     uses: Primajin/.github/.github/workflows/reusable-release-please.yml@v1
+```
+
+## `lockfile-summary.yml`
+
+One job that comments which packages changed in the `package-lock.json` files of a pull request (Renovate lockfile
+maintenance PRs otherwise only say "All locks refreshed"). It checks out the pull request with full history, diffs the
+lockfiles against the base branch and creates or updates a single comment marked with `<!-- lockfile-summary -->`.
+No inputs or secrets. The summary script is inlined in the workflow on purpose (see the versioning policy above): it
+runs with `pull-requests: write` and the job token, so it must come from the same commit as the workflow the caller
+pinned.
+
+```yaml
+name: Lockfile summary
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**/package-lock.json'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  summary:
+    if: github.event.pull_request.user.login == 'renovate[bot]'
+    uses: Primajin/.github/.github/workflows/lockfile-summary.yml@v1
 ```
 
 ## The `All checks green` aggregator stays in each repository
