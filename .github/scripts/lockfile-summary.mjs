@@ -1,3 +1,6 @@
+// DEPRECATED: the workflow now inlines this script (.github/workflows/lockfile-summary.yml, which is the
+// maintained copy). This file is only kept because lockfile-summary.yml@v1.0.0 (the current `v1`) still checks it
+// out from the default branch. Delete it once `v1` points to v1.0.1 or later.
 // Summarise which packages changed in the package-lock.json files of a pull request.
 // Env: BASE_REF (git ref to compare against), PR_NUMBER, GH_REPO, GH_TOKEN, DRY_RUN (print instead of posting)
 import {execFileSync} from 'node:child_process';
