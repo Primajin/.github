@@ -53,6 +53,13 @@
       ],
       "groupName": "major dependencies",
       "automerge": false
+    },
+    {
+      "description": "Hold typescript below 7: typescript-eslint, and so xo, does not support TypeScript 7 yet and the lint job crashes with 'typescript-eslint does not support TS 7.0'. Remove this rule once xo supports it.",
+      "matchPackageNames": [
+        "typescript"
+      ],
+      "allowedVersions": "<7"
     }
   ],
   "ignorePresets": [
