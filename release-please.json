@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Primajin Renovate preset for repos using release-please: conventional commits, hidden chore(deps) subjects, per-dependency changelog entries via a PR-body commit override",
+  "description": "Primajin Renovate preset for repos using release-please: conventional commits, hidden chore(deps) subjects; production-dependency updates add per-dependency changelog entries (and cut a release) via a PR-body commit override, dev/CI-only updates never do",
   "extends": [
     "local>Primajin/.github"
   ],
@@ -8,7 +8,7 @@
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
   "semanticCommitScope": "deps",
-  "prHeader": "{{#if isGroup}}Updates {{#each (distinct (lookupArray upgrades \"depName\"))}}`{{{this}}}`{{#unless @last}}, {{/unless}}{{/each}}.\n\n{{/if}}{{#if depName}}{{#unless isVulnerabilityAlert}}<!--\nBEGIN_COMMIT_OVERRIDE\n{{{prTitle}}}\nBEGIN_NESTED_COMMIT\ndeps: update {{#each (distinct (lookupArray upgrades \"depName\"))}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}\nEND_NESTED_COMMIT\nEND_COMMIT_OVERRIDE\n-->\n\n{{/unless}}{{/if}}",
+  "prHeader": "{{#if isGroup}}Updates {{#each (distinct (lookupArray upgrades \"depName\"))}}`{{{this}}}`{{#unless @last}}, {{/unless}}{{/each}}.\n\n{{/if}}{{#if depName}}{{#unless isVulnerabilityAlert}}{{#if (or (includes depTypes \"dependencies\") (includes depTypes \"optionalDependencies\"))}}<!--\nBEGIN_COMMIT_OVERRIDE\n{{{prTitle}}}\nBEGIN_NESTED_COMMIT\ndeps: update {{#each (distinct (lookupArray upgrades \"depName\"))}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}\nEND_NESTED_COMMIT\nEND_COMMIT_OVERRIDE\n-->\n\n{{/if}}{{/unless}}{{/if}}",
   "packageRules": [
     {
       "description": "Always chore(deps): config:recommended would turn production-dependency groups into fix(deps), which cuts a release",
