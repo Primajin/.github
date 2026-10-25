@@ -1,4 +1,17 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["local>Primajin/.github:release-please"]
+  "extends": ["local>Primajin/.github:release-please"],
+  "packageRules": [
+    {
+      "description": "The actions used inside the shipped composite actions and reusable workflows run in the CI of every repository that calls them, so a bump changes what those repositories get: it is a fix and cuts a patch release. Own PR (majors get theirs, and are not automerged by the shared preset). Templates and this repository's own workflows are not shipped and stay chore(deps) in the shared groups.",
+      "matchFileNames": [
+        "actions/**",
+        ".github/workflows/reusable-*.yml",
+        ".github/workflows/lockfile-summary.yml"
+      ],
+      "groupName": "shipped actions and workflows dependencies",
+      "semanticCommitType": "fix",
+      "semanticCommitScope": "deps"
+    }
+  ]
 }
