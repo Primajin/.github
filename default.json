@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Primajin shared Renovate preset: non-major updates bundled and automerged on weekends, majors bundled for manual review",
+  "description": "Primajin shared Renovate preset: non-major updates bundled and automerged on weekends, majors bundled for manual review, lock files refreshed once in the early hours of Saturday",
   "extends": [
     "config:recommended",
     ":disableDependencyDashboard"
@@ -22,7 +22,7 @@
     "enabled": true,
     "automerge": true,
     "schedule": [
-      "every weekend"
+      "before 6am on saturday"
     ],
     "commitMessageAction": "Refresh",
     "commitMessageTopic": "lockfile"
