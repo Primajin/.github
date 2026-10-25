@@ -1,0 +1,62 @@
+name: Setup Playwright
+description: Install the locked dependencies of an action repository and its Playwright Chromium, with the browser cached per Playwright version.
+
+# Composite action for the Primajin action repositories that drive Chromium with Playwright
+# (screenshots-ci-action, webapp-console-log-action). It is called from inside their own composite action, so the
+# caller passes its own `github.action_path` as `working-directory`.
+
+inputs:
+  working-directory:
+    description: Directory with the package.json and package-lock.json of the calling action. The lockfile must lock `playwright`. Pass `${{ github.action_path }}`.
+    required: true
+  with-deps:
+    description: Also install the OS libraries and fonts of Chromium (`playwright install --with-deps`). Rendering needs them (emoji, CJK and Thai fonts); a run that only reads logs does not. Defaults to false.
+    required: false
+    default: 'false'
+  node-version:
+    description: Node.js version for actions/setup-node.
+    required: false
+    default: '24'
+
+outputs:
+  playwright-version:
+    description: The locked Playwright version, which is also the browser cache key.
+    value: ${{ steps.playwright.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install dependencies
+      run: npm ci --omit=dev
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+
+    - name: Resolve Playwright version
+      id: playwright
+      run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/playwright'].version")" >> "$GITHUB_OUTPUT"
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+    # The cache holds the browser download only; the apt packages of --with-deps are installed on every run.
+    - name: Install Chromium
+      run: |
+        if [[ "$WITH_DEPS" == 'true' ]]; then
+          npx playwright install --with-deps chromium
+        else
+          npx playwright install chromium
+        fi
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        WITH_DEPS: ${{ inputs.with-deps }}
