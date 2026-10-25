@@ -1,0 +1,19 @@
+name: Release Please
+
+# Releases this repository with its own reusable workflow. Merging the release PR creates the vX.Y.Z tag and
+# release and moves the floating major tag (v1, v2, ...) that the callers of the reusable workflows and composite
+# actions pin. Needs "Allow GitHub Actions to create and approve pull requests" in Settings > Actions > General.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  release-please:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/reusable-release-please.yml

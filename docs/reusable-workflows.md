@@ -36,27 +36,41 @@ the `v1`, `v2`, ... tags of this repository (see below).
 
 ### Cutting a release and moving the major tag
 
+This repository releases itself with [`release-please.yml`](../.github/workflows/release-please.yml), which calls
+`reusable-release-please.yml` on every push to `main`. It keeps one release PR open (version bump from the Conventional
+Commit titles: `fix` is a patch, `feat` a minor, `!` or `BREAKING CHANGE` a major, plus `CHANGELOG.md`).
+
+1. Merge changes to `main` with a Conventional Commits PR title; [`lint-pr-title.yml`](../.github/workflows/lint-pr-title.yml)
+   checks it, because the squash commit is what release-please reads.
+2. Merge the release PR when you want consumers to receive the changes. That creates the `vX.Y.Z` tag and release and
+   moves the floating `vX` tag in the same run. Until then `main` is not consumed by anyone who pins `@v1`.
+3. Verify that the major tag points to the release commit:
+   ```sh
+   git ls-remote --tags origin v1 v1.1.0
+   ```
+
+Renovate uses the `release-please` preset of this repository, so its commits are `chore(deps)` and never cut a release.
+
+The repository setting *Settings > Actions > General > Allow GitHub Actions to create and approve pull requests* has to be
+on, or release-please cannot open the release PR.
+
+Manual fallback, for example if release-please is unavailable: create the release by hand from `main`, which also
+triggers [`release-major-tag.yml`](../.github/workflows/release-major-tag.yml):
+
+```sh
+gh release create v1.2.0 --target "$(git rev-parse origin/main)" --title v1.2.0 --generate-notes
+```
+
 [`release-major-tag.yml`](../.github/workflows/release-major-tag.yml) force-moves `vMAJOR` to the commit of the newest
 pushed `vMAJOR.MINOR.PATCH` tag. Before it moves anything it checks that the tag is a strict `vX.Y.Z`, that its commit
-is on `main`, and that it is the newest `vX.*` tag (the major tag never moves backwards). Runs are serialized.
+is on `main`, and that it is the newest `vX.*` tag (the major tag never moves backwards). Runs are serialized. A tag
+push only triggers it when the workflow file exists on the tagged commit, and tags created by an Actions run with
+`GITHUB_TOKEN` (such as release-please's) never trigger other workflows, which is why the release-please workflow moves
+the major tag itself. If the tag did not move, run it by hand from `main`:
 
-1. Merge the change to `main`.
-2. Create and push the release tag from `main`:
-   ```sh
-   git switch main && git pull
-   git tag v1.0.0 && git push origin v1.0.0
-   ```
-   Optionally add release notes: `gh release create v1.0.0 --verify-tag --generate-notes`.
-3. Verify that the major tag exists and points to the release commit:
-   ```sh
-   git ls-remote --tags origin v1 v1.0.0
-   ```
-4. Fallback: a tag push only triggers the workflow when the workflow file exists on the tagged commit, and tags created
-   by an Actions run with `GITHUB_TOKEN` (for example by release-please) never trigger other workflows. Run it by hand
-   from `main` instead:
-   ```sh
-   gh workflow run release-major-tag.yml -f tag=v1.0.0
-   ```
+```sh
+gh workflow run release-major-tag.yml -f tag=v1.2.0
+```
 
 ### Recommended tag ruleset
 

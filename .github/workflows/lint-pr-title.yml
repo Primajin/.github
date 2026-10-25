@@ -1,0 +1,20 @@
+name: Lint PR title
+
+# release-please reads the squash commit, which is the PR title: an unconventional title would silently not count
+# towards a release.
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+
+permissions: {}
+
+jobs:
+  lint-pr-title:
+    permissions:
+      pull-requests: write
+    uses: ./.github/workflows/reusable-lint-pr-title.yml
