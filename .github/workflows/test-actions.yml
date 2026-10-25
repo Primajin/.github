@@ -1,0 +1,56 @@
+name: Test composite actions
+
+# Runs the composite actions of this repository on a runner. setup-playwright needs the package-lock.json of an
+# action repository, so it is exercised by the CI of screenshots-ci-action and webapp-console-log-action instead.
+
+on:
+  pull_request:
+    paths:
+      - 'actions/**'
+      - '.github/workflows/test-actions.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  wait-for-url-answers:
+    name: wait-for-url succeeds on a URL that answers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./actions/wait-for-url
+        with:
+          url: https://github.com/
+          timeout: '30'
+
+  wait-for-url-fails:
+    name: wait-for-url fails when the URL never answers 2xx
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: A URL that answers 404 until the timeout
+        id: not-found
+        continue-on-error: true
+        uses: ./actions/wait-for-url
+        with:
+          url: https://github.com/Primajin/this-repository-does-not-exist
+          timeout: '6'
+          interval: '2'
+      - name: A timeout that is not a number
+        id: bad-timeout
+        continue-on-error: true
+        uses: ./actions/wait-for-url
+        with:
+          url: https://github.com/
+          timeout: '6;echo injected'
+      - name: Both steps must have failed
+        env:
+          NOT_FOUND: ${{ steps.not-found.outcome }}
+          BAD_TIMEOUT: ${{ steps.bad-timeout.outcome }}
+        run: |
+          echo "404 URL: $NOT_FOUND, bad timeout: $BAD_TIMEOUT"
+          [[ "$NOT_FOUND" == failure && "$BAD_TIMEOUT" == failure ]]

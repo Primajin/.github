@@ -1,7 +1,8 @@
 # Reusable workflows
 
-Shared CI building blocks for the Primajin repositories. They live in `.github/workflows/` of this repository and are
-called from other repositories with `uses: Primajin/.github/.github/workflows/<file>@v1`.
+Shared CI building blocks for the Primajin repositories. The reusable workflows live in `.github/workflows/` of this
+repository and are called from other repositories with `uses: Primajin/.github/.github/workflows/<file>@v1`. The
+composite actions live in `actions/` and are called from a step with `uses: Primajin/.github/actions/<name>@v1`.
 
 | Workflow | Purpose |
 | --- | --- |
@@ -12,6 +13,11 @@ called from other repositories with `uses: Primajin/.github/.github/workflows/<f
 
 Not reusable, used by this repository itself: [`release-major-tag.yml`](../.github/workflows/release-major-tag.yml) moves
 the `v1`, `v2`, ... tags of this repository (see below).
+
+| Composite action | Purpose |
+| --- | --- |
+| [`actions/setup-playwright`](../actions/setup-playwright/action.yml) | Install an action's locked dependencies and its cached Playwright Chromium (used by the two action repositories) |
+| [`actions/wait-for-url`](../actions/wait-for-url/action.yml) | Wait until a preview URL answers with a 2xx response |
 
 ## Versioning policy
 
@@ -58,6 +64,61 @@ Because callers run whatever `@v1` points to, restrict who can create, move or d
 repository ruleset (*Settings > Rules > Rulesets*, target: tags, pattern `v*`, enforcement active): restrict creation,
 update and deletion, with the repository admin role and the GitHub Actions app as bypass actors, so that only the owner
 and `release-major-tag.yml` can move the tags. This ruleset is a recommendation and is not created by this repository.
+
+## Composite actions
+
+### `actions/wait-for-url`
+
+One step that waits until a URL answers with a 2xx response and fails when it does not within the timeout. It replaces
+the polling loop that every preview workflow carried as its own copy. It uses `curl --retry-all-errors`, which also
+retries HTTP errors such as the 404 of a preview that is not deployed yet, follows redirects and gives each attempt at
+most 30 seconds.
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `url` | required | The URL to wait for |
+| `timeout` | `'180'` | Seconds to keep retrying in total |
+| `interval` | `'5'` | Seconds between two attempts |
+
+```yaml
+steps:
+  - name: Wait for the preview
+    uses: Primajin/.github/actions/wait-for-url@v1
+    with:
+      url: ${{ env.PREVIEW_URL }}
+```
+
+### `actions/setup-playwright`
+
+For the action repositories that drive Chromium with Playwright from their own composite action
+(`Primajin/screenshots-ci-action`, `Primajin/webapp-console-log-action`). It runs `setup-node`, `npm ci --omit=dev` in
+the calling action's directory, caches `~/.cache/ms-playwright` per locked Playwright version and installs Chromium.
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `working-directory` | required | Directory with the `package.json` and `package-lock.json` of the calling action; pass `${{ github.action_path }}` |
+| `with-deps` | `'false'` | Also install Chromium's OS libraries and fonts (`playwright install --with-deps`) |
+| `node-version` | `'24'` | Node.js version |
+
+| Output | Description |
+| --- | --- |
+| `playwright-version` | The locked Playwright version, also the cache key |
+
+`with-deps` matters when the run renders pages: `--with-deps` installs `fonts-noto-color-emoji`, `fonts-ipafont-gothic`,
+`fonts-wqy-zenhei`, `fonts-tlwg-loma-otf` and `fonts-freefont-ttf` next to the libraries (from the `ubuntu24.04-x64` list
+in `playwright-core` 1.64.1), so screenshots set it. A run that only reads console logs does not. The cache holds only the
+browser download; the apt packages are installed on every run.
+
+```yaml
+steps:
+  - uses: Primajin/.github/actions/setup-playwright@v1
+    with:
+      working-directory: ${{ github.action_path }}
+      with-deps: true
+```
+
+An action that other repositories pin by commit SHA should pin this action by SHA too (`@<sha> # v1.x.y`), because a
+floating `@v1` inside a SHA-pinned action would let the tag change what the pin runs.
 
 ## Things to know before calling
 

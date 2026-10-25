@@ -1,0 +1,45 @@
+name: Wait for URL
+description: Wait until a URL answers with a 2xx response, retrying on every error, and fail when it does not within the timeout.
+
+# Replaces the polling loop that each preview workflow carried as its own copy. The retry logic is curl's:
+# --retry-all-errors also retries HTTP errors such as the 404 of a preview that is not deployed yet.
+
+inputs:
+  url:
+    description: The URL to wait for. Redirects are followed.
+    required: true
+  timeout:
+    description: Seconds to keep retrying in total.
+    required: false
+    default: '180'
+  interval:
+    description: Seconds between two attempts.
+    required: false
+    default: '5'
+
+runs:
+  using: composite
+  steps:
+    - name: Wait for the URL to answer
+      shell: bash
+      env:
+        WAIT_URL: ${{ inputs.url }}
+        WAIT_TIMEOUT: ${{ inputs.timeout }}
+        WAIT_INTERVAL: ${{ inputs.interval }}
+      run: |
+        # The numbers end up in a command line, so they have to be plain positive integers
+        for name in WAIT_TIMEOUT WAIT_INTERVAL; do
+          if [[ ! "${!name}" =~ ^[0-9]{1,5}$ ]] || (( 10#${!name} < 1 )); then
+            printf 'Error: %s must be a whole number of seconds from 1 to 99999 (got %q).\n' "$name" "${!name}"
+            exit 1
+          fi
+        done
+        retries=$(( 10#$WAIT_TIMEOUT / 10#$WAIT_INTERVAL ))
+        if status=$(curl --fail --silent --show-error --location --output /dev/null --write-out '%{http_code}' \
+          --retry "$retries" --retry-delay "$((10#$WAIT_INTERVAL))" --retry-all-errors --retry-max-time "$((10#$WAIT_TIMEOUT))" \
+          --connect-timeout 10 --max-time 30 -- "$WAIT_URL"); then
+          printf 'Answered with HTTP %s: %s\n' "$status" "$WAIT_URL"
+        else
+          printf 'Error: %q did not answer with a 2xx response within %s s.\n' "$WAIT_URL" "$WAIT_TIMEOUT"
+          exit 1
+        fi
